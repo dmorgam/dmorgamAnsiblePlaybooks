@@ -1,0 +1,114 @@
+---
+  - name: Installs my shell working environment (dmorgam)
+    hosts: "{{ target }}"
+    vars_prompt:
+      - name: "ansible_become_pass"
+        prompt: "Sudo tasks required - password"
+        private: yes
+    tasks:
+      - name: Distribution
+        debug: 
+          msg: "{{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+
+      - name: Get username
+        shell: whoami
+        register: username
+
+      - name: Debian/Ubuntu -  Installing (Nvim, Tmux, Zsh, powerline)
+        become: yes
+        become_user: root
+        apt: 
+          pkg:
+            - git
+            - neovim
+            - tmux
+            - zsh
+            - powerline
+          state: latest
+          update_cache: yes
+        when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+      - name: CentOS - Installing EPEL Repository
+        become: yes
+        become_user: root
+        yum:
+          name: epel-release
+          state: latest
+          update_cache: true
+        when: ansible_distribution == 'CentOS'
+
+      - name: CentOS - Installing (Nvim, Tmux, Zsh, powerline)
+        become: yes
+        become_user: root
+        yum:
+          name:
+            - git
+            - neovim
+            - tmux
+            - zsh
+            - tmux-powerline
+          state: latest
+          update_cache: true
+        when: ansible_distribution == 'CentOS'
+
+      - name: Downloading OhMyZSH installing script
+        get_url: 
+          url: https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh 
+          dest: /tmp/OhMyZSHInstall.sh
+
+      - name: Downloading SpaceVim installing script
+        get_url: 
+          url: https://spacevim.org/install.sh 
+          dest: /tmp/SpaceVimInstall.sh
+
+      - name: Debian/Ubuntu - tmux config
+        copy:
+          dest: "/home/{{ username.stdout }}/.tmux.conf"
+          content: |
+            source /usr/share/powerline/bindings/tmux/powerline.conf
+            set -g base-index 1
+            setw -g pane-base-index 1
+        when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+      - name: CentOS - tmux config
+        copy:
+          dest: "/home/{{ username.stdout }}/.tmux.conf"
+          content: |
+            source /usr/share/tmux/powerline.conf
+            set -g base-index 1
+            setw -g pane-base-index 1
+        when: ansible_distribution == 'CentOS'
+
+      - name: Installing OhMyZSH
+        command: sh /tmp/OhMyZSHInstall.sh
+
+      - name: Installing SpaceVim
+        command: bash /tmp/SpaceVimInstall.sh
+
+      - name: Change default shell to ZSH
+        become: yes
+        become_user: root
+        command: chsh -s /bin/zsh {{ username.stdout }}
+      
+      - name: Install ZSH Autosuggestions
+        git:
+          repo: https://github.com/zsh-users/zsh-autosuggestions 
+          dest: "/home/{{ username.stdout }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+
+      - name: Add ZSH Autosuggestions module
+        lineinfile: 
+          path: "/home/{{ username.stdout }}/.zshrc"
+          regexp: '^plugins=\(git\)' 
+          line: 'plugins=(git zsh-autosuggestions)'
+          backrefs: yes
+
+      - name: Set ZSH vi mode
+        blockinfile:
+          path: "/home/{{ username.stdout }}/.zshrc"
+          block: |
+            bindkey -v
+            VI_MODE_SET_CURSOR=true
+            VI_MODE_RESET_PROMPT_ON_MODE_CHANGE=true
+          insertbefore: EOF
+
+

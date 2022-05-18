@@ -1,0 +1,24 @@
+---
+  - name: ActualizarPaquetes OCI Instances
+    hosts: oci
+    become: yes
+    become_user: root
+    tasks:
+      - name: Distribution
+        debug: msg="{{ ansible_distribution }}"
+      - name: Actualizar la cache de apt si es debian o ubuntu
+        apt:
+          update_cache: yes
+        when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+         
+      - name: Actualizar todos los paquetes si es debian o ubuntu
+        apt: 
+          name: "*"
+          state: latest
+        when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+      - name: Actualizar todos los paquetes si es oracle linux o centos
+        yum: 
+          name: '*'
+          state: latest
+        when: ansible_distribution == 'CentOS' or ansible_distribution == 'OracleLinux'
