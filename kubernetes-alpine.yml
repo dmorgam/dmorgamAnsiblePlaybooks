@@ -1,0 +1,16 @@
+---
+
+# NOTE: YOU MUST INSTALL PYTHON BY HAND, AS IT'S A REQUIREMENT FOR ANSIBLE.
+
+# Installs kubernetes on alpine based nodes.
+
+# INFO: Nodes should be tagged with kubernetes_node_type variable (master,worker)
+
+- name: Kubernetes master
+  hosts: masters:workers
+  become_method: su
+  vars:
+    kubernetes_first_master: groups['masters'][0]
+  roles:
+  - role: kubernetes-alpine
+

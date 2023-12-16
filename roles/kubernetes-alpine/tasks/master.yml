@@ -1,0 +1,9 @@
+---
+
+# Master tasks, setup control planes
+
+# TODO: Check livez endpoint to ensure there is no running master.
+# TODO: Setup kubeadm in elected first node.
+# TODO: generate a join token for other masters.
+# TODO: join other masters to cluster.
+

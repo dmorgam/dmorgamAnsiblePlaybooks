@@ -1,0 +1,36 @@
+---
+# tasks file for kubernetes-alpine
+
+- name: Core tasks
+  ansible.builtin.include_tasks:
+    file: core.yml
+  tags:
+    - core
+  when: kubernetes_node_type in ['master','worker']
+
+- name: Master tasks
+  ansible.builtin.include_tasks:
+    file: master.yml
+  tags:
+    - master
+  when: kubernetes_node_type == 'master' and kubernetes_first_master != 'none'
+
+- name: Worker tasks
+  ansible.builtin.include_tasks:
+    file: worker.yml
+  tags:
+    - worker
+  when: kubernetes_node_type == 'worker' and kubernetes_first_master != 'none'
+
+
+- name: Check if node type is set.
+  ansible.builtin.debug:
+    msg: 'kubernetes_node_type is not properly set, tag each node correctly.'
+  when: kubernetes_node_type not in ['master','worker']
+
+- name: Check if first master node is set.
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.debug:
+    msg: 'kubernetes_first_master is not set, please set the name of first master.'
+  when: kubernetes_first_master == 'none'

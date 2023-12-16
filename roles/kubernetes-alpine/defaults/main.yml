@@ -1,0 +1,6 @@
+---
+# defaults file for kubernetes-alpine
+
+# If master or worker
+kubernetes_node_type: none
+kubernetes_first_master: none
