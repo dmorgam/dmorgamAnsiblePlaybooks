@@ -59,14 +59,26 @@
     - 'http://dl-cdn.alpinelinux.org/alpine/edge/community'
     - 'http://dl-cdn.alpinelinux.org/alpine/edge/testing'
 
-  - name: Install containerd.
+  - name: Install containerd and cni.
     community.general.apk:
       name:
       - cni-plugins
+      - cni-plugin-flannel
+      - flannel
+      - flannel-contrib-cni
       - containerd
       - uuidgen
       - nfs-utils
       update_cache: true
+
+  - name: Setup uid (1/2).
+    register: alpine_machine_id
+    ansible.builtin.stat:
+      path: /etc/machine-id
+
+  - name: Setup uid (2/2).
+    ansible.builtin.shell: uuidgen > /etc/machine-id
+    when: not alpine_machine_id.stat.exists
 
   - name: Starting containerd and adding to runlevel default.
     ansible.builtin.service:
@@ -81,6 +93,7 @@
         - kubelet
         - kubectl
         - kubeadm
+        - py3-cryptography
       update_cache: true
 
   - name: Pinning current kubernetes version installed (1/3).
@@ -97,4 +110,11 @@
       - "apk add 'kubelet=~{{ kubernetes_version.clientVersion.major }}.{{ kubernetes_version.clientVersion.minor }}'"
       - "apk add 'kubeadm=~{{ kubernetes_version.clientVersion.major }}.{{ kubernetes_version.clientVersion.minor }}'"
       - "apk add 'kubectl=~{{ kubernetes_version.clientVersion.major }}.{{ kubernetes_version.clientVersion.minor }}'"
+
+  - name: Starting kubelet and adding to runlevel default.
+    ansible.builtin.service:
+      name: kubelet
+      state: started
+      enabled: true
+      runlevel: default
 

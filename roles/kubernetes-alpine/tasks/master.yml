@@ -2,8 +2,90 @@
 
 # Master tasks, setup control planes
 
-# TODO: Check livez endpoint to ensure there is no running master.
-# TODO: Setup kubeadm in elected first node.
-# TODO: generate a join token for other masters.
-# TODO: join other masters to cluster.
+- name: Check if kubernetes master is already set-up.
+  register: apiserver_status_code
+  ansible.builtin.uri:
+    url: https://127.0.0.1:6443/livez
+    method: GET
+    validate_certs: false
+    status_code:
+    - 200
+    - -1
+
+- name: Setup first master if livez prove timed out.
+  become: true
+  block:
+
+    - name: Launch Kubeadm set-up (1/2).
+      vars:
+        kubernetes_advertise_address: "{{ ansible_host }}"
+      register: kubeadm_result
+      ansible.builtin.shell: |
+        kubeadm init --pod-network-cidr {{ kubernetes_pods_cidr }} \
+                     --service-cidr {{ kubernetes_service_cidr }}  \
+                     --apiserver-advertise-address {{ kubernetes_advertise_address }}
+
+    - name: Launch Kubeadm set-up (2/2).
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_result.stdout_lines | join() }}"
+
+    - name: Deploy flannel CNI.
+      ansible.builtin.shell: |
+        kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f {{ kubernetes_cni_yaml }}
+
+  when: apiserver_status_code.status == -1 and inventory_hostname == kubernetes_first_master
+
+- name: Check if kubernetes master is already set-up.
+  register: apiserver_status_code
+  ansible.builtin.uri:
+    url: https://127.0.0.1:6443/livez
+    method: GET
+    validate_certs: false
+    status_code:
+    - 200
+    - -1
+
+- name: Fetch first master tokens and CA.
+  become: true
+  block:
+
+    - name: Fetch CA certificate hash (1/2).
+      register: kubeadm_pki_ca
+      community.crypto.x509_certificate_info:
+        path: /etc/kubernetes/pki/ca.crt
+
+    - name: Fetch CA certificate hash (1/2).
+      ansible.builtin.set_fact:
+        kubeadm_ca_cert_hash: 'sha256:{{ kubeadm_pki_ca["public_key_fingerprints"]["sha256"] | replace(":","") }}'
+
+    - name: Fetch Joining Token (1/2).
+      register: kubeadm_join_token
+      ansible.builtin.shell: kubeadm token generate
+
+    - name: Fetch Joining Token (2/2).
+      ansible.builtin.set_fact:
+        kubeadm_joining_token: "{{ kubeadm_join_token.stdout_lines[0] }}"
+
+  when: apiserver_status_code.status == 200 and inventory_hostname == kubernetes_first_master
+
+- name: Join other master nodes to cluster.
+  become: true
+  block:
+
+    - name: Launch kubeadm join controlplane (1/2). 
+      register: kubeadm_join_result
+      vars:
+        kubernetes_advertise_address: "{{ hostvars[kubernetes_first_master]['ansible_host'] }}"
+        kubeadm_joining_token: "{{ hostvars[kubernetes_first_master]['kubeadm_joining_token'] }}"
+        kubeadm_ca_cert_hash: "{{ hostvars[kubernetes_first_master]['kubeadm_ca_cert_hash'] }}"
+      ansible.builtin.shell: |
+        kubeadm join {{ kubernetes_advertise_address }}:6443 --token {{ kubeadm_joining_token }} \
+                                                             --discovery-token-ca-cert-hash {{ kubeadm_ca_cert_hash }} \
+                                                             --control-plane
+
+    - name: Launch kubeadm join controlplane (2/2). 
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_join_result.stdout_lines | join() }}"
+
+  when: apiserver_status_code.status == -1 and inventory_hostname != kubernetes_first_master
 

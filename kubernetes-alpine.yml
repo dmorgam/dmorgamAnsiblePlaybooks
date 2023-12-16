@@ -10,7 +10,7 @@
   hosts: masters:workers
   become_method: su
   vars:
-    kubernetes_first_master: groups['masters'][0]
+    kubernetes_first_master: "{{ groups['masters'][0] }}"
   roles:
   - role: kubernetes-alpine
 
