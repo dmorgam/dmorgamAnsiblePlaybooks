@@ -1,4 +1,38 @@
 ---
 
 # Worker tasks, setup workers and join cluster
+- name: Check if kubelet is already set-up.
+  register: kubelet_status_code
+  ansible.builtin.uri:
+    url: http://127.0.0.1:10248/healthz
+    method: GET
+    validate_certs: false
+    status_code:
+    - 200
+    - -1
+
+- name: Join worker to cluster.
+  become: true
+  block:
+    - name: Add control plane endpoint to /etc/hosts if not resolvable (first master ip by default).
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        line: "{{ hostvars[kubernetes_first_master]['ansible_host'] }} {{ kubernetes_apiserver_ha_endpoint }}"
+      when: kubernetes_apiserver_ha_endpoint is not ansible.utils.resolvable
+
+    - name: Launch kubeadm join worker (1/2). 
+      register: kubeadm_join_result
+      vars:
+        kubeadm_joining_token: "{{ hostvars[kubernetes_first_master]['kubeadm_joining_token'] }}"
+        kubeadm_ca_cert_hash: "{{ hostvars[kubernetes_first_master]['kubeadm_ca_cert_hash'] }}"
+      ansible.builtin.shell: |
+        kubeadm join {{ kubernetes_apiserver_ha_endpoint }}:6443 --token {{ kubeadm_joining_token }} \
+                                                                 --discovery-token-ca-cert-hash {{ kubeadm_ca_cert_hash }}
+
+    - name: Launch kubeadm join worker (2/2). 
+      ansible.builtin.debug:
+        msg: "{{ kubeadm_join_result.stdout_lines | join() }}"
+
+  when: kubelet_status_code.status == -1
 

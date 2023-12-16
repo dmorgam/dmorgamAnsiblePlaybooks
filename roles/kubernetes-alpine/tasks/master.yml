@@ -39,9 +39,20 @@
       ansible.builtin.debug:
         msg: "{{ kubeadm_result.stdout_lines | join() }}"
 
-    - name: Deploy flannel CNI.
+    - name: Deploy flannel CNI (1/3).
+      ansible.builtin.get_url:
+        url: "{{ kubernetes_cni_yaml_url }}"
+        dest: "/tmp/{{ kubernetes_cni_yaml }}"
+
+    - name: Deploy flannel CNI (2/3).
+      ansible.builtin.replace:
+        path: "/tmp/{{ kubernetes_cni_yaml }}"
+        regexp:  '^      "Network": "10.244.0.0/16",'
+        replace: '      "Network": "{{ kubernetes_pods_cidr }}",'
+
+    - name: Deploy flannel CNI (3/3).
       ansible.builtin.shell: |
-        kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f {{ kubernetes_cni_yaml }}
+        kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f /tmp/{{ kubernetes_cni_yaml }}
 
   when: apiserver_status_code.status == -1 and inventory_hostname == kubernetes_first_master
 
