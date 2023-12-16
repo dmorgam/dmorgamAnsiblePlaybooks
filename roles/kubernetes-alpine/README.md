@@ -1,38 +1,50 @@
-Role Name
+Kubernetes Alpine
 =========
 
-A brief description of the role goes here.
+Install kubernetes on alpine nodes with flannel CNI.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+Install python jmespath and cryptography.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+kubernetes_node_type:    (master/worker)
+kubernetes_first_master: (machine name)
+kubernetes_pods_cidr:    (kubeadm pod cidr)
+kubernetes_service_cidr: (kubernetes service cidr)
+kubernetes_cni_yaml:     (yaml url of flannel)
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+Install ansible galaxy requirements, community.general, community.crypto
 
 Example Playbook
 ----------------
 
 Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+---
+- name: Kubernetes master
+  hosts: masters:workers
+  become_method: su
+  vars:
+    kubernetes_first_master: "{{ groups['masters'][0] }}"
+  roles:
+  - role: kubernetes-alpine
+```
 
 License
 -------
 
-BSD
+GPLv3
 
 Author Information
 ------------------
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+David Moreno (dmorgam), SRE and Kubernetes Admin
+
