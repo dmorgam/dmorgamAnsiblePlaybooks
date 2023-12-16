@@ -8,6 +8,8 @@ kubernetes_first_master: none
 # Kubeadm params
 kubernetes_pods_cidr: 172.18.0.0/17
 kubernetes_service_cidr: 172.18.128.0/17
+kubernetes_apiserver_extra_sans: 'k8s-apiserver.local'
+kubernetes_apiserver_ha_endpoint: 'kubernetes-apiserver.local'
 
 # Cni deploy
 kubernetes_cni_yaml: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml

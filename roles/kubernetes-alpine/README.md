@@ -16,6 +16,8 @@ kubernetes_first_master: (machine name)
 kubernetes_pods_cidr:    (kubeadm pod cidr)
 kubernetes_service_cidr: (kubernetes service cidr)
 kubernetes_cni_yaml:     (yaml url of flannel)
+kubernetes_apiserver_extra_sans: (comma separated extra dns or endpoints for apiserver)
+kubernetes_apiserver_ha_endpoint: (stable load balanced endpoint, for example, one of the extra sans dns)
 
 Dependencies
 ------------
@@ -34,6 +36,8 @@ Including an example of how to use your role (for instance, with variables passe
   become_method: su
   vars:
     kubernetes_first_master: "{{ groups['masters'][0] }}"
+    kubernetes_apiserver_extra_sans: "k8s-cluster.local"
+    kubernetes_apiserver_ha_endpoint: "k8s.local"
   roles:
   - role: kubernetes-alpine
 ```

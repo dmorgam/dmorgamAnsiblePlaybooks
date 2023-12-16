@@ -11,6 +11,8 @@
   become_method: su
   vars:
     kubernetes_first_master: "{{ groups['masters'][0] }}"
+    kubernetes_apiserver_extra_sans: "k8s-cluster.local"
+    kubernetes_apiserver_ha_endpoint: "k8s.local"
   roles:
   - role: kubernetes-alpine
 
