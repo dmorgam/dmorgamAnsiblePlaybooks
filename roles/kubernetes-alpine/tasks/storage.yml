@@ -1,0 +1,30 @@
+---
+
+# Storage tasks, deploy local path provisioner as default storage class
+- name: Storage setup.
+  become: true
+  block:
+    - name: Deploy local path provisioner (1/4).
+      register: local_path_manifest
+      ansible.builtin.uri:
+        url: "https://raw.githubusercontent.com/rancher/local-path-provisioner/{{ kubernetes_local_path_version }}/deploy/local-path-storage.yaml"
+        return_content: true
+
+    - name: Deploy local path provisioner (2/4).
+      ansible.builtin.copy:
+        dest: "/tmp/local-path-storage-{{ kubernetes_local_path_version }}.yaml"
+        mode: '0644'
+        content: >-
+          {{ local_path_manifest.content
+             | replace('"/opt/local-path-provisioner"', '"' ~ kubernetes_local_path_dir ~ '"')
+             | regex_replace('(?m)^  name: local-path\nprovisioner:',
+                             '  name: local-path\n  annotations:\n    storageclass.kubernetes.io/is-default-class: "true"\nprovisioner:') }}
+
+    - name: Deploy local path provisioner (3/4).
+      register: local_path_apply
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f /tmp/local-path-storage-{{ kubernetes_local_path_version }}.yaml
+      changed_when: "' created' in local_path_apply.stdout or ' configured' in local_path_apply.stdout"
+
+    - name: Deploy local path provisioner (4/4).
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf -n local-path-storage rollout status deploy/local-path-provisioner --timeout=300s
+      changed_when: false

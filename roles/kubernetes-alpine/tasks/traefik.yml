@@ -1,0 +1,27 @@
+---
+
+# Traefik tasks, deploy ingress controller
+- name: Traefik setup.
+  become: true
+  block:
+    - name: Install helm.
+      community.general.apk:
+        name:
+          - helm
+          - py3-yaml
+        update_cache: true
+
+    - name: Deploy traefik ingress controller.
+      kubernetes.core.helm:
+        name: traefik
+        chart_ref: traefik
+        chart_repo_url: https://traefik.github.io/charts
+        chart_version: "{{ kubernetes_traefik_chart_version }}"
+        release_namespace: traefik
+        create_namespace: true
+        kubeconfig: /etc/kubernetes/admin.conf
+        values: "{{ kubernetes_traefik_values }}"
+
+    - name: Wait for traefik ingress controller.
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf -n traefik rollout status daemonset/traefik --timeout=300s
+      changed_when: false

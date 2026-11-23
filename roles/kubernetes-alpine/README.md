@@ -22,7 +22,7 @@ kubernetes_apiserver_ha_endpoint: (stable load balanced endpoint, for example, o
 Dependencies
 ------------
 
-Install ansible galaxy requirements, community.general, community.crypto
+Install ansible galaxy requirements, community.general, community.crypto, kubernetes.core
 
 Example Playbook
 ----------------

@@ -22,6 +22,25 @@
     - worker
   when: kubernetes_node_type == 'worker' and kubernetes_first_master != 'none'
 
+- name: Traefik tasks
+  ansible.builtin.include_tasks:
+    file: traefik.yml
+    apply:
+      tags:
+        - traefik
+  tags:
+    - traefik
+  when: kubernetes_traefik_enabled and inventory_hostname == kubernetes_first_master
+
+- name: Storage tasks
+  ansible.builtin.include_tasks:
+    file: storage.yml
+    apply:
+      tags:
+        - storage
+  tags:
+    - storage
+  when: kubernetes_local_path_enabled and inventory_hostname == kubernetes_first_master
 
 - name: Check if node type is set.
   ansible.builtin.debug:

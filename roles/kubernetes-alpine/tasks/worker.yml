@@ -14,12 +14,18 @@
 - name: Join worker to cluster.
   become: true
   block:
+    - name: Check if control plane endpoint is resolvable.
+      register: apiserver_endpoint_lookup
+      ansible.builtin.command: getent hosts {{ kubernetes_apiserver_ha_endpoint }}
+      changed_when: false
+      failed_when: false
+
     - name: Add control plane endpoint to /etc/hosts if not resolvable (first master ip by default).
       ansible.builtin.lineinfile:
         path: /etc/hosts
         state: present
         line: "{{ hostvars[kubernetes_first_master]['ansible_host'] }} {{ kubernetes_apiserver_ha_endpoint }}"
-      when: kubernetes_apiserver_ha_endpoint is not ansible.utils.resolvable
+      when: apiserver_endpoint_lookup.rc != 0
 
     - name: Launch kubeadm join worker (1/2). 
       register: kubeadm_join_result

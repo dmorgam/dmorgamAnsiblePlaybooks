@@ -16,7 +16,7 @@ Collection of Ansible playbooks to automate personal instances.
 │   ├── DmorgamShellEnv.yml    # Personal shell env (zsh, tmux, SpaceVim)
 │   └── OCIactualizarPaquetes.yml  # Package updates on OCI hosts
 ├── requirements.txt           # Python deps (ansible, jmespath, cryptography)
-├── requirements.yml           # Galaxy collections (community.general, community.crypto)
+├── requirements.yml           # Galaxy collections (community.general, community.crypto, kubernetes.core)
 └── inventory.yml              # (git-ignored) local inventory
 ```
 
@@ -69,14 +69,14 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
 
 ## Role `kubernetes-alpine`
 
-`roles/kubernetes-alpine/tasks/main.yml` orchestrates three phases:
+`roles/kubernetes-alpine/tasks/main.yml` orchestrates five phases:
 
 1. **`core.yml`** — common prep on every node:
    - Loads kernel modules `br_netfilter`, `overlay`.
    - Applies sysctl: `net.bridge.bridge-nf-call-iptables`, `net.ipv4.ip_forward`, `net.bridge.bridge-nf-call-ip6tables`.
    - Disables swap.
-   - Enables Alpine repos (main, community, edge-community, edge-testing).
-   - Installs `cni-plugins`, `cni-plugin-flannel`, `flannel`, `flannel-contrib-cni`, `containerd`, `uuidgen`, `nfs-utils`.
+   - Enables the Alpine community repo.
+   - Installs `cni-plugins`, `cni-plugin-flannel`, `containerd`, `uuidgen`, `nfs-utils`.
    - Generates `/etc/machine-id` if missing.
    - Starts the `containerd` service.
    - Installs `kubelet`, `kubectl`, `kubeadm`, `py3-cryptography`, pinned to an exact minor version.
@@ -88,12 +88,16 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
      - Adds `kubernetes_apiserver_ha_endpoint` to `/etc/hosts` if it does not resolve.
      - Runs `kubeadm init` with `--pod-network-cidr`, `--service-cidr`, `--apiserver-advertise-address`, `--apiserver-cert-extra-sans`, `--control-plane-endpoint`, `--upload-certs`.
      - Downloads the Flannel manifest, patches the pod CIDR, applies it with `kubectl --kubeconfig admin.conf`.
-     - Generates join token, CA hash, certificate-key. Exposes them as facts.
+     - If there are more nodes, generates join token, CA hash, certificate-key. Exposes them as facts.
    - **Secondary masters**: run `kubeadm join --control-plane` reusing the first master's token + CA hash + certificate-key.
 
 3. **`worker.yml`** — only nodes with `kubernetes_node_type: worker`:
    - Checks `kubelet` at `localhost:10248/healthz`.
    - If not joined, runs `kubeadm join` with token and CA hash (no `--control-plane`).
+
+4. **`traefik.yml`** — first master only: installs Traefik ingress with Helm.
+
+5. **`storage.yml`** — first master only: installs local-path-provisioner as default StorageClass.
 
 ### Relevant defaults (`roles/kubernetes-alpine/defaults/main.yml`)
 

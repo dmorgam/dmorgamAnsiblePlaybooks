@@ -45,27 +45,38 @@
   - name: Load sysctl configuration.
     ansible.builtin.shell: sysctl -p /etc/sysctl.d/k8s.conf
 
+  - name: Setting up shared mount propagation (1/3).
+    ansible.builtin.copy:
+      dest: /etc/local.d/mount-rshared.start
+      mode: '0755'
+      content: |
+        #!/bin/sh
+        mount --make-rshared /
+
+  - name: Setting up shared mount propagation (2/3).
+    ansible.builtin.service:
+      name: local
+      enabled: true
+      runlevel: default
+
+  - name: Setting up shared mount propagation (3/3).
+    ansible.builtin.command: mount --make-rshared /
+
   - name: Get the repository release version of alpine.
     ansible.builtin.shell: "grep -E 'main$' -m 1 /etc/apk/repositories | rev | cut -d / -f2 | rev"
     register: alpine_repository_version
 
-  - name: Adding community, edge-community and testing repositories.
+  - name: Adding community repository.
     ansible.builtin.lineinfile:
       path: /etc/apk/repositories
       state: present
-      line: '{{ item }}'
-    with_items:
-    - 'http://dl-cdn.alpinelinux.org/alpine/{{ alpine_repository_version.stdout_lines[0] }}/community'
-    - 'http://dl-cdn.alpinelinux.org/alpine/edge/community'
-    - 'http://dl-cdn.alpinelinux.org/alpine/edge/testing'
+      line: 'https://dl-cdn.alpinelinux.org/alpine/{{ alpine_repository_version.stdout_lines[0] }}/community'
 
   - name: Install containerd and cni.
     community.general.apk:
       name:
       - cni-plugins
       - cni-plugin-flannel
-      - flannel
-      - flannel-contrib-cni
       - containerd
       - uuidgen
       - nfs-utils

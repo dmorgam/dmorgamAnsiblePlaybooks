@@ -12,5 +12,29 @@ kubernetes_apiserver_extra_sans: 'k8s-apiserver.local'
 kubernetes_apiserver_ha_endpoint: 'kubernetes-apiserver.local'
 
 # Cni deploy
-kubernetes_cni_yaml_url: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+kubernetes_cni_yaml_url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 kubernetes_cni_yaml: kube-flannel.yml
+
+# Ingress deploy
+kubernetes_traefik_enabled: true
+kubernetes_traefik_chart_version: '42.4.1'
+kubernetes_traefik_values:
+  deployment:
+    kind: DaemonSet
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  ports:
+    web:
+      hostPort: 80
+    websecure:
+      hostPort: 443
+  service:
+    spec:
+      type: ClusterIP
+
+# Storage deploy
+kubernetes_local_path_enabled: true
+kubernetes_local_path_version: 'v0.0.37'
+kubernetes_local_path_dir: /var/lib/local-path-provisioner

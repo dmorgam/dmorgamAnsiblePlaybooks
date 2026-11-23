@@ -16,12 +16,18 @@
   become: true
   block:
 
+    - name: Check if control plane endpoint is resolvable.
+      register: apiserver_endpoint_lookup
+      ansible.builtin.command: getent hosts {{ kubernetes_apiserver_ha_endpoint }}
+      changed_when: false
+      failed_when: false
+
     - name: Add control plane endpoint to /etc/hosts if not resolvable (first master ip by default).
       ansible.builtin.lineinfile:
         path: /etc/hosts
         state: present
         line: '{{ ansible_host }} {{ kubernetes_apiserver_ha_endpoint }}'
-      when: kubernetes_apiserver_ha_endpoint is not ansible.utils.resolvable
+      when: apiserver_endpoint_lookup.rc != 0
 
     - name: Launch Kubeadm set-up (1/2).
       vars:
@@ -101,18 +107,27 @@
     - name: Generate certificate key and upload certificates (3/3).
       ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs --certificate-key {{ kubeadm_certificate_key }}
 
-  when: apiserver_status_code.status == 200 and inventory_hostname == kubernetes_first_master
+  when:
+    - apiserver_status_code.status == 200
+    - inventory_hostname == kubernetes_first_master
+    - groups['masters'] | length > 1 or groups['workers'] | default([]) | length > 0
 
 - name: Join other master nodes to cluster.
   become: true
   block:
+
+    - name: Check if control plane endpoint is resolvable.
+      register: apiserver_endpoint_lookup
+      ansible.builtin.command: getent hosts {{ kubernetes_apiserver_ha_endpoint }}
+      changed_when: false
+      failed_when: false
 
     - name: Add control plane endpoint to /etc/hosts if not resolvable (first master ip by default).
       ansible.builtin.lineinfile:
         path: /etc/hosts
         state: present
         line: "{{ hostvars[kubernetes_first_master]['ansible_host'] }} {{ kubernetes_apiserver_ha_endpoint }}"
-      when: kubernetes_apiserver_ha_endpoint is not ansible.utils.resolvable
+      when: apiserver_endpoint_lookup.rc != 0
 
     - name: Launch kubeadm join controlplane (1/2). 
       register: kubeadm_join_result
@@ -133,4 +148,12 @@
         msg: "{{ kubeadm_join_result.stdout_lines | join() }}"
 
   when: apiserver_status_code.status == -1 and inventory_hostname != kubernetes_first_master
+
+- name: Allow workloads on control planes if there are no workers.
+  become: true
+  register: kubectl_untaint_result
+  ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf taint nodes --all node-role.kubernetes.io/control-plane-
+  changed_when: "'untainted' in kubectl_untaint_result.stdout"
+  failed_when: kubectl_untaint_result.rc != 0 and 'not found' not in kubectl_untaint_result.stderr
+  when: inventory_hostname == kubernetes_first_master and groups['workers'] | default([]) | length == 0
 
