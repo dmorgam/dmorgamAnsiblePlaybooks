@@ -22,6 +22,16 @@
     - worker
   when: kubernetes_node_type == 'worker' and kubernetes_first_master != 'none'
 
+- name: Kubelet tasks
+  ansible.builtin.include_tasks:
+    file: kubelet.yml
+    apply:
+      tags:
+        - kubelet
+  tags:
+    - kubelet
+  when: kubernetes_node_type in ['master','worker'] and kubernetes_first_master != 'none'
+
 - name: Traefik tasks
   ansible.builtin.include_tasks:
     file: traefik.yml

@@ -69,7 +69,7 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
 
 ## Role `kubernetes-alpine`
 
-`roles/kubernetes-alpine/tasks/main.yml` orchestrates six phases:
+`roles/kubernetes-alpine/tasks/main.yml` orchestrates seven phases:
 
 1. **`core.yml`** — common prep on every node:
    - Loads kernel modules `br_netfilter`, `overlay`.
@@ -95,11 +95,13 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
    - Checks `kubelet` at `localhost:10248/healthz`.
    - If not joined, runs `kubeadm join` with token and CA hash (no `--control-plane`).
 
-4. **`traefik.yml`** — first master only: installs Traefik ingress with Helm.
+4. **`kubelet.yml`** — every node: pins the kubelet node name.
 
-5. **`storage.yml`** — first master only: installs local-path-provisioner as default StorageClass.
+5. **`traefik.yml`** — first master only: installs Traefik ingress with Helm.
 
-6. **`metrics.yml`** — first master only: installs metrics-server with Helm.
+6. **`storage.yml`** — first master only: installs local-path-provisioner as default StorageClass.
+
+7. **`metrics.yml`** — first master only: installs metrics-server with Helm.
 
 ### Relevant defaults (`roles/kubernetes-alpine/defaults/main.yml`)
 

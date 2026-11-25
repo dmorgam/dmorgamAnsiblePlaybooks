@@ -1,0 +1,57 @@
+---
+
+# Kubelet tasks, keep node name when hostname changes
+- name: Kubelet setup.
+  become: true
+  block:
+    - name: Pin kubelet node name (1/7).
+      register: kubelet_client_certificate
+      community.crypto.x509_certificate_info:
+        path: /var/lib/kubelet/pki/kubelet-client-current.pem
+
+    - name: Pin kubelet node name (2/7).
+      ansible.builtin.set_fact:
+        kubelet_node_name: "{{ kubelet_client_certificate.subject.commonName | regex_replace('^system:node:', '') }}"
+
+    - name: Pin kubelet node name (3/7).
+      register: kubelet_flags
+      ansible.builtin.replace:
+        path: /var/lib/kubelet/kubeadm-flags.env
+        regexp: '^KUBELET_KUBEADM_ARGS="(?!.*--hostname-override=)(.*)"$'
+        replace: 'KUBELET_KUBEADM_ARGS="\1 --hostname-override={{ kubelet_node_name }}"'
+
+    - name: Pin kubelet node name (4/7).
+      ansible.builtin.service:
+        name: kubelet
+        state: restarted
+      when: kubelet_flags is changed
+
+    - name: Pin kubelet node name (5/7).
+      register: kubelet_static_pods
+      vars:
+        kubelet_static_pod_names: >-
+          {{ (kubelet_static_pods.stdout | default('{}', true) | from_json).get('items', [])
+             | map(attribute='metadata.name') | list }}
+      ansible.builtin.command: crictl --runtime-endpoint unix:///run/containerd/containerd.sock pods --label tier=control-plane --state ready -o json
+      changed_when: false
+      until: >-
+        'kube-apiserver-' ~ kubelet_node_name in kubelet_static_pod_names
+        and kubelet_static_pod_names | reject('search', '-' ~ (kubelet_node_name | regex_escape) ~ '$') | list | length == 0
+      retries: 60
+      delay: 5
+      when: kubernetes_node_type == 'master'
+
+    - name: Pin kubelet node name (6/7).
+      register: kubelet_apiserver_ready
+      ansible.builtin.uri:
+        url: https://127.0.0.1:6443/readyz
+        method: GET
+        validate_certs: false
+      until: kubelet_apiserver_ready.status == 200
+      retries: 60
+      delay: 5
+      when: kubernetes_node_type == 'master'
+
+    - name: Pin kubelet node name (7/7).
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/kubelet.conf wait --for=condition=Ready node/{{ kubelet_node_name }} --timeout=300s
+      changed_when: false
