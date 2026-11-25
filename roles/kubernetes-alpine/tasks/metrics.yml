@@ -1,0 +1,26 @@
+---
+
+# Metrics tasks, deploy metrics server
+- name: Metrics setup.
+  become: true
+  block:
+    - name: Install helm.
+      community.general.apk:
+        name:
+          - helm
+          - py3-yaml
+        update_cache: true
+
+    - name: Deploy metrics server.
+      kubernetes.core.helm:
+        name: metrics-server
+        chart_ref: metrics-server
+        chart_repo_url: https://kubernetes-sigs.github.io/metrics-server/
+        chart_version: "{{ kubernetes_metrics_server_chart_version }}"
+        release_namespace: kube-system
+        kubeconfig: /etc/kubernetes/admin.conf
+        values: "{{ kubernetes_metrics_server_values }}"
+
+    - name: Wait for metrics server.
+      ansible.builtin.command: kubectl --kubeconfig /etc/kubernetes/admin.conf -n kube-system rollout status deploy/metrics-server --timeout=300s
+      changed_when: false

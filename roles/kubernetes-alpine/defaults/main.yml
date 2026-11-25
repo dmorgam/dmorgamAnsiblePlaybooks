@@ -38,3 +38,10 @@ kubernetes_traefik_values:
 kubernetes_local_path_enabled: true
 kubernetes_local_path_version: 'v0.0.37'
 kubernetes_local_path_dir: /var/lib/local-path-provisioner
+
+# Metrics deploy
+kubernetes_metrics_server_enabled: true
+kubernetes_metrics_server_chart_version: '3.14.0'
+kubernetes_metrics_server_values:
+  args:
+    - --kubelet-insecure-tls

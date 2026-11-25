@@ -42,6 +42,16 @@
     - storage
   when: kubernetes_local_path_enabled and inventory_hostname == kubernetes_first_master
 
+- name: Metrics tasks
+  ansible.builtin.include_tasks:
+    file: metrics.yml
+    apply:
+      tags:
+        - metrics
+  tags:
+    - metrics
+  when: kubernetes_metrics_server_enabled and inventory_hostname == kubernetes_first_master
+
 - name: Check if node type is set.
   ansible.builtin.debug:
     msg: 'kubernetes_node_type is not properly set, tag each node correctly.'

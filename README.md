@@ -69,7 +69,7 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
 
 ## Role `kubernetes-alpine`
 
-`roles/kubernetes-alpine/tasks/main.yml` orchestrates five phases:
+`roles/kubernetes-alpine/tasks/main.yml` orchestrates six phases:
 
 1. **`core.yml`** — common prep on every node:
    - Loads kernel modules `br_netfilter`, `overlay`.
@@ -98,6 +98,8 @@ ansible-playbook -i inventory.yml kubernetes-alpine.yml
 4. **`traefik.yml`** — first master only: installs Traefik ingress with Helm.
 
 5. **`storage.yml`** — first master only: installs local-path-provisioner as default StorageClass.
+
+6. **`metrics.yml`** — first master only: installs metrics-server with Helm.
 
 ### Relevant defaults (`roles/kubernetes-alpine/defaults/main.yml`)
 
